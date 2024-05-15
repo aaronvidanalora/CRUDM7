@@ -96,8 +96,75 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             echo "Please provide a table name.";
         }
+    } elseif (isset($_POST["updateTable"])) {
+        $tableName = $_POST["tableName"];
+
+        if ($tableName) {
+            try {
+                $pdo = new PDO("pgsql:host=localhost;dbname=usuaris", "postgres", "postgres");
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+                if (isset($_POST["rowId"]) && is_numeric($_POST["rowId"])) {
+                    $rowId = $_POST["rowId"];
+
+                    // Consulta SQL para seleccionar una fila específica de la tabla
+                    $stmt = $pdo->prepare("SELECT * FROM $tableName WHERE id = :id");
+                    $stmt->bindParam(':id', $rowId);
+                    $stmt->execute();
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    // Mostrar el formulario para actualizar la fila
+                    if ($row) {
+                        echo '<h3>Update row in table ' . $tableName . ':</h3>';
+                        echo '<form method="post">';
+                        echo '<input type="hidden" name="updateRow" value="1">';
+                        echo '<input type="hidden" name="tableName" value="' . $tableName . '">';
+                        echo '<input type="hidden" name="rowId" value="' . $rowId . '">';
+                        foreach ($row as $key => $value) {
+                            echo '<div>';
+                            echo '<label for="' . $key . '">' . $key . '</label>';
+                            echo '<input type="text" name="' . $key . '" id="' . $key . '" value="' . $value . '">';
+                            echo '</div>';
+                        }
+                        echo '<button type="submit">Update Row</button>';
+                        echo '</form>';
+                    } else {
+                        echo 'No row found in table ' . $tableName . ' with ID ' . $rowId;
+                    }
+                } else {
+                    echo "Please provide a valid row ID.";
+                }
+            } catch (PDOException $e) {
+                echo "Error updating table: " . $e->getMessage();
+            }
+        } else {
+            echo "Please provide a table name.";
+        }
+    } elseif (isset($_POST["deleteTable"])) {
+        $tableName = $_POST["tableName"];
+        $deleteId = $_POST["deleteId"];
+        $deleteId = isset($_POST["deleteId"]) ? $_POST["deleteId"] : null;
+
+        if ($tableName && $deleteId) {
+            try {
+                $pdo = new PDO("pgsql:host=localhost;dbname=usuaris", "postgres", "postgres");
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+                // Eliminar la fila específica
+                $stmt = $pdo->prepare("DELETE FROM $tableName WHERE id = :id");
+                $stmt->bindParam(':id', $deleteId);
+                $stmt->execute();
+    
+                // Enviar respuesta de éxito
+                echo "Row with ID $deleteId from table $tableName deleted successfully.";
+            } catch (PDOException $e) {
+                echo "Error deleting row: " . $e->getMessage();
+            }
+        } else {
+            echo "Please provide a table name and a row ID.";
+        }
     }
-}
+}    
 ?>
 
 <!DOCTYPE html>
@@ -190,64 +257,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </form>
                 ';
             }
-        }
-    }
-    ?>
-
-    <script>
-        document.getElementById('addColumnBtn').addEventListener('click', function() {
-            var columnInputsDiv = document.getElementById('columnInputs');
-
-            var newColumnNameInput = document.createElement('input');
-            newColumnNameInput.type = 'text';
-            newColumnNameInput.name = 'columnName[]';
-            newColumnNameInput.placeholder = 'Column Name';
-            columnInputsDiv.appendChild(newColumnNameInput);
-            
-            var newColumnTypeInput = document.createElement('select');
-            newColumnTypeInput.name = 'columnType[]';
-            newColumnTypeInput.innerHTML = `
-                <option value="VARCHAR">VARCHAR</option>
-                <option value="INT">INT</option>
-                <option value="TEXT">TEXT</option>
-                <!-- Add more options as needed -->
-            `;
-            columnInputsDiv.appendChild(newColumnTypeInput);
-            
-            columnInputsDiv.appendChild(document.createElement('br'));
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('form').addEventListener('submit', function(event) {
-                event.preventDefault();
-                var userInput = document.querySelector('input[name="userInput"]').value.trim();
-                var commandParts = userInput.split(" ");
-                var action = commandParts[0];
-                var tableName = commandParts[1];
-                var id = commandParts[2];
-
-                if (action === 'read' && id === 'all') {
-                    // Envía una solicitud POST al servidor para leer todas las filas de la tabla
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('POST', window.location.href, true);
-                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                    xhr.onload = function() {
-                        if (xhr.status >= 200 && xhr.status < 400) {
-                            // Inserta la respuesta en el DOM
-                            var responseDiv = document.createElement('div');
-                            responseDiv.innerHTML = xhr.responseText;
-                            document.body.appendChild(responseDiv);
-                        } else {
-                            console.error('Error al procesar la solicitud.');
+        } elseif ($action === 'update' && $tableName !== null) {
+            $id = isset($commandParts[2]) ? $commandParts[2] : null;
+            if ($id !== null) {
+                try {
+                    $pdo = new PDO("pgsql:host=localhost;dbname=usuaris", "postgres", "postgres");
+                    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+                    // Consulta SQL para seleccionar la fila a actualizar
+                    $stmt = $pdo->prepare("SELECT * FROM $tableName WHERE id = :id");
+                    $stmt->bindParam(':id', $id);
+                    $stmt->execute();
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+                    // Mostrar el formulario para actualizar la fila
+                    if ($row) {
+                        echo '<h3>Update row with ID ' . $id . ' from table ' . $tableName . ':</h3>';
+                        echo '<form name="updateRowForm" method="post">';
+                        echo '<input type="hidden" name="updateTable" value="1">';
+                        echo '<input type="hidden" name="tableName" value="' . $tableName . '">';
+                        echo '<input type="hidden" name="rowId" value="' . $id . '">';
+                        foreach ($row as $key => $value) {
+                            echo '<div>';
+                            echo '<label for="' . $key . '">' . $key . '</label>';
+                            echo '<input type="text" name="' . $key . '" id="' . $key . '" value="' . $value . '">';
+                            echo '</div>';
                         }
-                    };
-                    xhr.onerror = function() {
-                        console.error('Error al realizar la solicitud.');
-                    };
-                    xhr.send('readTable=1&tableName=' + tableName);
+                        echo '<button type="submit">Update Row</button>';
+                        echo '</form>';
+                    } else {
+                        echo 'No row found in table ' . $tableName . ' with ID ' . $id;
+                    }
+                } catch (PDOException $e) {
+                    echo "Error updating table: " . $e->getMessage();
                 }
-            });
-        });
-    </script>
+            } else {
+                echo 'Please provide row ID for update.';
+            }
+        } elseif ($action === 'delete' && $tableName !== null) {
+            echo '
+                <h3>Delete row from table ' . $tableName . ':</h3>
+                <form id="deleteForm" method="post">
+                    <input type="hidden" name="deleteTable" value="1">
+                    <input type="hidden" name="tableName" value="' . $tableName . '">
+                    <input type="text" name="deleteId" placeholder="Enter Row ID to delete">
+                    <button type="submit" id="confirmDelete">Delete Row</button>
+                </form>
+            ';
+        }
+        
+    }        
+    ?>
+<script src="main.js" ></script>
 </body>
 </html>
